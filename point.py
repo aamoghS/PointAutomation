@@ -1,32 +1,34 @@
 import pandas as pd
-from openpyxl import load_workbook
-from openpyxl.utils import get_column_letter
 
-def update_existing_sheet(existing_sheet_filename, input_sheet_filename):
-    try:
-        existing_workbook = load_workbook(existing_sheet_filename)
-        existing_sheet = existing_workbook.active
-        new_data = pd.read_excel(input_sheet_filename)
+# First Excel file
+file1_data = pd.read_excel('file1.xlsx')
 
-        name_points_dict = new_data.groupby('Name')['Points'].sum().to_dict()
+# Second Excel file
+file2_data = pd.read_excel('file2.xlsx')
 
-        for name, points in name_points_dict.items():
-            existing_row = existing_sheet.find(name)
+# group the files 
+points_dict = file1_data.groupby(['First Name', 'Last Name'])['Points'].sum().to_dict()
 
-            if not existing_row:
-                new_row = [name, points]
-                existing_sheet.append(new_row)
-            else:
-                row_num = existing_row.row
-                existing_sheet.cell(row=row_num, column=2).value += points
+# Merge mile and add points 
+merged_data = []
+for index, row in file2_data.iterrows():
+    first_name = row['First Name']
+    last_name = row['Last Name']
+    points = points_dict.get((first_name, last_name), 0) + 1
+    merged_data.append({'First Name': first_name, 'Last Name': last_name, 'Points': points})
 
-        existing_workbook.save(existing_sheet_filename)
-        print("Data successfully updated in the existing sheet.")
-    except FileNotFoundError:
-        print("Error: One or both of the input files not found.")
-    except Exception as e:
-        print(f"Error occurred while updating the sheet: {e}")
+# merged to a frame 
+merged_df = pd.DataFrame(merged_data)
 
-existing_sheet_filename = 'existing_sheet.xlsx'
-input_sheet_filename = 'input_sheet.xlsx'
-update_existing_sheet(existing_sheet_filename, input_sheet_filename)
+# additional
+additional_columns = list(file2_data.columns)
+additional_columns.remove('First Name')
+additional_columns.remove('Last Name')
+
+for col in additional_columns:
+    merged_df[col] = file2_data[col]
+
+# saves
+merged_df.to_excel('merged_file.xlsx', index=False)
+
+print("Updated.")
